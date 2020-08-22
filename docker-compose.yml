@@ -1,0 +1,25 @@
+version: '3.7'
+
+networks:
+    default:
+      external:
+        name: network
+
+services:
+    app:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        restart: unless-stopped
+        ports:
+          - "8000:8000"
+        depends_on:
+          - redis
+        environment:
+          REDIS_URL: redis://user:@redis:6379/0
+
+    redis:
+        image: redis
+        restart: unless-stopped
+        expose:
+            - 6379
