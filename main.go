@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	twc "github/ylubyanoy/go_web_server/internal/twitchconfig"
-
 	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/mux"
 )
@@ -87,6 +85,76 @@ func NewConnManager(conn redis.Conn) *ConnManager {
 	}
 }
 
+type TwitchUsers struct {
+	DisplayName string    `json:"display_name"`
+	ID          string    `json:"_id"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Bio         string    `json:"bio"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Logo        string    `json:"logo"`
+}
+
+type TwitchStreamerInfo struct {
+	Total int           `json:"_total"`
+	Users []TwitchUsers `json:"users"`
+}
+
+type StreamPreview struct {
+	Small    string `json:"small"`
+	Medium   string `json:"medium"`
+	Large    string `json:"large"`
+	Template string `json:"template"`
+}
+
+type StreamChannel struct {
+	Mature                       bool      `json:"mature"`
+	Status                       string    `json:"status"`
+	BroadcasterLanguage          string    `json:"broadcaster_language"`
+	BroadcasterSoftware          string    `json:"broadcaster_software"`
+	DisplayName                  string    `json:"display_name"`
+	Game                         string    `json:"game"`
+	Language                     string    `json:"language"`
+	ID                           int       `json:"_id"`
+	Name                         string    `json:"name"`
+	CreatedAt                    time.Time `json:"created_at"`
+	UpdatedAt                    time.Time `json:"updated_at"`
+	Partner                      bool      `json:"partner"`
+	Logo                         string    `json:"logo"`
+	VideoBanner                  string    `json:"video_banner"`
+	ProfileBanner                string    `json:"profile_banner"`
+	ProfileBannerBackgroundColor string    `json:"profile_banner_background_color"`
+	URL                          string    `json:"url"`
+	Views                        int       `json:"views"`
+	Followers                    int       `json:"followers"`
+	BroadcasterType              string    `json:"broadcaster_type"`
+	Description                  string    `json:"description"`
+	PrivateVideo                 bool      `json:"private_video"`
+	PrivacyOptionsEnabled        bool      `json:"privacy_options_enabled"`
+}
+
+type TwitchStream struct {
+	ID                int64         `json:"_id"`
+	Game              string        `json:"game"`
+	BroadcastPlatform string        `json:"broadcast_platform"`
+	CommunityID       string        `json:"community_id"`
+	CommunityIds      []interface{} `json:"community_ids"`
+	Viewers           int           `json:"viewers"`
+	VideoHeight       int           `json:"video_height"`
+	AverageFps        int           `json:"average_fps"`
+	Delay             int           `json:"delay"`
+	CreatedAt         time.Time     `json:"created_at"`
+	IsPlaylist        bool          `json:"is_playlist"`
+	StreamType        string        `json:"stream_type"`
+	Preview           StreamPreview `json:"preview"`
+	Channel           StreamChannel `json:"channel"`
+}
+
+type TwitchStreamStatus struct {
+	Stream TwitchStream `json:"stream"`
+}
+
 type StreamerNickName struct {
 	Username string `json:"username"`
 }
@@ -142,7 +210,7 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tsi twc.TwitchStreamerInfo
+	var tsi TwitchStreamerInfo
 	err = json.Unmarshal(body, &tsi)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -178,7 +246,7 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tss twc.TwitchStreamStatus
+	var tss TwitchStreamStatus
 	err = json.Unmarshal(body, &tss)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -226,7 +294,7 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup) {
 		log.Fatalf("Error: %s", err)
 	}
 
-	var tsi twc.TwitchStreamerInfo
+	var tsi TwitchStreamerInfo
 	err = json.Unmarshal(body, &tsi)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
@@ -253,7 +321,7 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup) {
 		log.Fatalf("Error: %s", err)
 	}
 
-	var tss twc.TwitchStreamStatus
+	var tss TwitchStreamStatus
 	err = json.Unmarshal(body, &tss)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
