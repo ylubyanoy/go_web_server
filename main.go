@@ -222,6 +222,11 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup, streamers 
 		log.Fatalf("Error: %s", err)
 	}
 
+	if tss.Stream.Viewers == 0 {
+		log.Printf("No stream data for User %s", streamerName)
+		return
+	}
+
 	si := StreamerInfo{
 		ChannelName:  tsi.Users[0].Name,
 		Viewers:      strconv.Itoa(tss.Stream.Viewers),
