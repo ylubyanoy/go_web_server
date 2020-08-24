@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,6 +9,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	twc "github.com/ylubyanoy/go_web_server/internal"
+	"go.uber.org/zap"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/mux"
@@ -19,10 +21,7 @@ const servicename = "streamsinfo"
 
 var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
 
-var (
-	redisAddr   = getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
-	sessManager *ConnManager
-)
+var sessManager *ConnManager
 
 var streamers = `{
 	"users": [
@@ -44,116 +43,6 @@ var streamers = `{
 	  {"username": "Danucd"}
 	]
 }`
-
-type ConnManager struct {
-	redisConn redis.Conn
-}
-
-func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
-	mkey := streamerName
-	data, err := redis.Bytes(sm.redisConn.Do("GET", mkey))
-	if err != nil {
-		log.Printf("cant get data for %s: (%s)", mkey, err)
-		return nil
-	}
-	si := &StreamerInfo{}
-	err = json.Unmarshal(data, si)
-	if err != nil {
-		log.Printf("cant unpack session data for %s: (%s)", mkey, err)
-		return nil
-	}
-	return si
-}
-
-func (sm *ConnManager) Create(si *StreamerInfo) error {
-	dataSerialized, _ := json.Marshal(si)
-	mkey := si.ChannelName
-	data, err := sm.redisConn.Do("SET", mkey, dataSerialized, "EX", 60)
-	result, err := redis.String(data, err)
-	if err != nil {
-		return err
-	}
-	if result != "OK" {
-		return fmt.Errorf("result not OK")
-	}
-	return nil
-}
-
-func NewConnManager(conn redis.Conn) *ConnManager {
-	return &ConnManager{
-		redisConn: conn,
-	}
-}
-
-type TwitchUsers struct {
-	DisplayName string    `json:"display_name"`
-	ID          string    `json:"_id"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Bio         string    `json:"bio"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Logo        string    `json:"logo"`
-}
-
-type TwitchStreamerInfo struct {
-	Total int           `json:"_total"`
-	Users []TwitchUsers `json:"users"`
-}
-
-type StreamPreview struct {
-	Small    string `json:"small"`
-	Medium   string `json:"medium"`
-	Large    string `json:"large"`
-	Template string `json:"template"`
-}
-
-type StreamChannel struct {
-	Mature                       bool      `json:"mature"`
-	Status                       string    `json:"status"`
-	BroadcasterLanguage          string    `json:"broadcaster_language"`
-	BroadcasterSoftware          string    `json:"broadcaster_software"`
-	DisplayName                  string    `json:"display_name"`
-	Game                         string    `json:"game"`
-	Language                     string    `json:"language"`
-	ID                           int       `json:"_id"`
-	Name                         string    `json:"name"`
-	CreatedAt                    time.Time `json:"created_at"`
-	UpdatedAt                    time.Time `json:"updated_at"`
-	Partner                      bool      `json:"partner"`
-	Logo                         string    `json:"logo"`
-	VideoBanner                  string    `json:"video_banner"`
-	ProfileBanner                string    `json:"profile_banner"`
-	ProfileBannerBackgroundColor string    `json:"profile_banner_background_color"`
-	URL                          string    `json:"url"`
-	Views                        int       `json:"views"`
-	Followers                    int       `json:"followers"`
-	BroadcasterType              string    `json:"broadcaster_type"`
-	Description                  string    `json:"description"`
-	PrivateVideo                 bool      `json:"private_video"`
-	PrivacyOptionsEnabled        bool      `json:"privacy_options_enabled"`
-}
-
-type TwitchStream struct {
-	ID                int64         `json:"_id"`
-	Game              string        `json:"game"`
-	BroadcastPlatform string        `json:"broadcast_platform"`
-	CommunityID       string        `json:"community_id"`
-	CommunityIds      []interface{} `json:"community_ids"`
-	Viewers           int           `json:"viewers"`
-	VideoHeight       int           `json:"video_height"`
-	AverageFps        int           `json:"average_fps"`
-	Delay             int           `json:"delay"`
-	CreatedAt         time.Time     `json:"created_at"`
-	IsPlaylist        bool          `json:"is_playlist"`
-	StreamType        string        `json:"stream_type"`
-	Preview           StreamPreview `json:"preview"`
-	Channel           StreamChannel `json:"channel"`
-}
-
-type TwitchStreamStatus struct {
-	Stream TwitchStream `json:"stream"`
-}
 
 type StreamerNickName struct {
 	Username string `json:"username"`
@@ -210,7 +99,7 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tsi TwitchStreamerInfo
+	var tsi twc.TwitchStreamerInfo
 	err = json.Unmarshal(body, &tsi)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -222,6 +111,7 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 	if len(tsi.Users) == 0 {
 		log.Printf("No data for User %s", streamerName)
 		json.NewEncoder(w).Encode(&StreamerInfo{})
+		return
 	}
 
 	// Get stream status
@@ -246,7 +136,7 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tss TwitchStreamStatus
+	var tss twc.TwitchStreamStatus
 	err = json.Unmarshal(body, &tss)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -262,16 +152,21 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 		Thumbnail:    tss.Stream.Preview.Large,
 	})
 	if err != nil {
-		log.Printf("cant get data for %s: (%s)", streamerName, err)
+		log.Printf("Can't get data for %s: (%s)", streamerName, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	// Return stream info
-	json.NewEncoder(w).Encode(&StreamerInfo{ChannelName: tsi.Users[0].Name, Viewers: strconv.Itoa(tss.Stream.Viewers), StatusStream: "True", Thumbnail: tss.Stream.Preview.Large})
+	json.NewEncoder(w).Encode(&StreamerInfo{
+		ChannelName:  tsi.Users[0].Name,
+		Viewers:      strconv.Itoa(tss.Stream.Viewers),
+		StatusStream: "True",
+		Thumbnail:    tss.Stream.Preview.Large,
+	})
 }
 
-func getStreamData(streamerName, clientID string, wg *sync.WaitGroup) {
+func getStreamData(streamerName, clientID string, wg *sync.WaitGroup, streamers *[]StreamerInfo, mutex *sync.Mutex) {
 	defer wg.Done()
 
 	timeout := time.Duration(5 * time.Second)
@@ -294,7 +189,7 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup) {
 		log.Fatalf("Error: %s", err)
 	}
 
-	var tsi TwitchStreamerInfo
+	var tsi twc.TwitchStreamerInfo
 	err = json.Unmarshal(body, &tsi)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
@@ -321,40 +216,25 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup) {
 		log.Fatalf("Error: %s", err)
 	}
 
-	var tss TwitchStreamStatus
+	var tss twc.TwitchStreamStatus
 	err = json.Unmarshal(body, &tss)
 	if err != nil {
 		log.Fatalf("Error: %s", err)
 	}
 
-	// Show stream info
-	log.Println(tsi.Users[0].Name, tss.Stream.Game, tss.Stream.Viewers)
-}
-
-func showStreamersInfo(w http.ResponseWriter, r *http.Request) {
-	var wg sync.WaitGroup
-
-	t1 := time.Now()
-
-	var strNames Streamers
-	err := json.Unmarshal([]byte(streamers), &strNames)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Internal Server error"))
-		log.Fatalf("Error: %s", err)
+	si := StreamerInfo{
+		ChannelName:  tsi.Users[0].Name,
+		Viewers:      strconv.Itoa(tss.Stream.Viewers),
+		StatusStream: "True",
+		Thumbnail:    tss.Stream.Preview.Large,
 	}
-
-	for _, streamerName := range strNames.Streamer {
-		wg.Add(1)
-		go getStreamData(streamerName.Username, clientID, &wg)
-
-	}
-
-	wg.Wait()
-	log.Printf("Elapsed time: %v", time.Since(t1))
+	mutex.Lock()
+	*streamers = append(*streamers, si)
+	mutex.Unlock()
 }
 
 func getStreamersInfo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var wg sync.WaitGroup
 
 	t1 := time.Now()
@@ -367,13 +247,64 @@ func getStreamersInfo(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Error: %s", err)
 	}
 
+	var mutex = &sync.Mutex{}
+	var streamers []StreamerInfo
 	for _, streamerName := range strNames.Streamer {
 		wg.Add(1)
-		go getStreamData(streamerName.Username, clientID, &wg)
+		go getStreamData(streamerName.Username, clientID, &wg, &streamers, mutex)
 	}
 
 	wg.Wait()
 	log.Printf("Elapsed time: %v", time.Since(t1))
+
+	// Return streamers info
+	json.NewEncoder(w).Encode(streamers)
+}
+
+func main() {
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	appLoger := logger.Sugar().Named(servicename)
+	appLoger.Info("The application is starting...")
+
+	redisAddr := getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
+	redisConn := &redis.Pool{
+		MaxIdle:     10,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			redisConn, err := redis.DialURL(redisAddr)
+			if err != nil {
+				appLoger.Fatalw("Can't connect to Redis", "err", err)
+			}
+			return redisConn, nil
+		},
+	}
+	sessManager = NewConnManager(redisConn)
+	rc := redisConn.Get()
+	_, err := redis.String(rc.Do("PING"))
+	if err != nil {
+		appLoger.Fatalw("Can't connect to Redis", "err", err)
+	}
+	rc.Close()
+	appLoger.Info("Connected to Redis")
+
+	rs := mux.NewRouter()
+	rs.HandleFunc("/streamers/", getStreamersInfo).Methods("GET")
+	rs.HandleFunc("/streamers/{streamerName}", getStreamerInfo).Methods("GET")
+
+	port := "8000"
+	smux := http.NewServeMux()
+
+	smux.Handle("/streamers/", rs)
+
+	appLoger.Info("Server are ready")
+	err = http.ListenAndServe(":"+port, smux)
+	if err != nil {
+		appLoger.Fatalw("Got an error from the server", "err", err)
+	}
+
+	appLoger.Info("The application is stopped.")
 }
 
 func getEnv(key, defaultValue string) string {
@@ -382,27 +313,4 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
-}
-
-func main() {
-	redisConn, err := redis.DialURL(redisAddr)
-	if err != nil {
-		log.Fatalf("cant connect to redis")
-	}
-	sessManager = NewConnManager(redisConn)
-
-	rs := mux.NewRouter()
-	rs.HandleFunc("/streamers/", showStreamersInfo).Methods("GET")
-	rs.HandleFunc("/streamers/{streamerName}", getStreamerInfo).Methods("GET")
-
-	port := "8000"
-	smux := http.NewServeMux()
-
-	smux.Handle("/streamers/", rs)
-
-	err = http.ListenAndServe(":"+port, smux)
-	if err != nil {
-		log.Fatalln(err)
-
-	}
 }
