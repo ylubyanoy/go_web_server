@@ -43,7 +43,7 @@ func (sm *ConnManager) Create(si *StreamerInfo) error {
 
 	dataSerialized, _ := json.Marshal(si)
 	mkey := si.ChannelName
-	data, err := cmc.Do("SET", mkey, dataSerialized, "EX", 60*3)
+	data, err := cmc.Do("SET", mkey, dataSerialized, "EX", 60*10)
 	result, err := redis.String(data, err)
 	if err != nil {
 		return err

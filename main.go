@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -54,7 +53,8 @@ type Streamers struct {
 
 type StreamerInfo struct {
 	ChannelName  string `json:"channel_name"`
-	Viewers      string `json:"viewers"`
+	Game         string `json:"game"`
+	Viewers      int    `json:"viewers"`
 	StatusStream string `json:"status_stream"`
 	Thumbnail    string `json:"thumbnail"`
 }
@@ -147,8 +147,9 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 
 	err = sessManager.Create(&StreamerInfo{
 		ChannelName:  tsi.Users[0].Name,
-		Viewers:      strconv.Itoa(tss.Stream.Viewers),
-		StatusStream: "True",
+		Game:         tss.Stream.Game,
+		Viewers:      tss.Stream.Viewers,
+		StatusStream: "true",
 		Thumbnail:    tss.Stream.Preview.Large,
 	})
 	if err != nil {
@@ -160,8 +161,9 @@ func getStreamerInfo(w http.ResponseWriter, r *http.Request) {
 	// Return stream info
 	json.NewEncoder(w).Encode(&StreamerInfo{
 		ChannelName:  tsi.Users[0].Name,
-		Viewers:      strconv.Itoa(tss.Stream.Viewers),
-		StatusStream: "True",
+		Game:         tss.Stream.Game,
+		Viewers:      tss.Stream.Viewers,
+		StatusStream: "true",
 		Thumbnail:    tss.Stream.Preview.Large,
 	})
 }
@@ -229,8 +231,9 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup, streamers 
 
 	si := StreamerInfo{
 		ChannelName:  tsi.Users[0].Name,
-		Viewers:      strconv.Itoa(tss.Stream.Viewers),
-		StatusStream: "True",
+		Game:         tss.Stream.Game,
+		Viewers:      tss.Stream.Viewers,
+		StatusStream: "true",
 		Thumbnail:    tss.Stream.Preview.Large,
 	}
 	mutex.Lock()

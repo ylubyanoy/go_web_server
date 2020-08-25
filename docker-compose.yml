@@ -1,25 +1,45 @@
 version: '3.7'
 
 networks:
-    default:
-      external:
-        name: network
+  default:
+    external:
+      name: network
 
 services:
-    app:
-        build:
-          context: .
-          dockerfile: Dockerfile
-        restart: unless-stopped
-        ports:
-          - "8000:8000"
-        depends_on:
-          - redis
-        environment:
-          REDIS_URL: redis://user:@redis:6379/0
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - 8000
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://user:@redis:6379/0
+    labels:
+      - "traefik.enable=true"
+      - traefik.http.routers.app.rule=Host(`95.217.142.210`)
+      - "traefik.http.routers.app.entrypoints=web"
 
-    redis:
-        image: redis
-        restart: unless-stopped
-        expose:
-            - 6379
+  redis:
+    image: redis
+    restart: unless-stopped
+    expose:
+      - 6379
+    labels:
+      - "traefik.enable=false"
+
+  traefik:
+    image: traefik:v2.0
+    container_name: traefik
+    command:
+      # - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      # - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
