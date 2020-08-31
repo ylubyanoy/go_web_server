@@ -185,7 +185,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Fatalf("Error: %s", err)
+			logger.Fatalw("Error: %s", err)
 		}
 
 		var mutex = &sync.Mutex{}
@@ -196,7 +196,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 		}
 
 		wg.Wait()
-		log.Printf("Elapsed time: %v", time.Since(t1))
+		logger.Infof("Elapsed time: %v", time.Since(t1))
 
 		// Return streamers info
 		json.NewEncoder(w).Encode(streamers)
@@ -216,7 +216,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		// Check Redis
 		si := sessManager.Check(streamerName)
 		if si != nil {
-			log.Println("Get from Redis")
+			logger.Info("Get from Redis")
 			json.NewEncoder(w).Encode(si)
 			return
 		}
@@ -235,7 +235,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -244,7 +244,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 
@@ -253,12 +253,12 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 
 		if len(tsi.Users) == 0 {
-			log.Printf("No data for User %s", streamerName)
+			logger.Infof("No data for User %s", streamerName)
 			json.NewEncoder(w).Encode(&StreamerInfo{})
 			return
 		}
@@ -272,7 +272,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 		defer resp.Body.Close()
@@ -281,7 +281,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 
@@ -290,7 +290,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
-			log.Printf("Error: %s", err)
+			logger.Errorw("Error: %s", err)
 			return
 		}
 
@@ -303,7 +303,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *ConnManager) fun
 			Thumbnail:    tss.Stream.Preview.Large,
 		})
 		if err != nil {
-			log.Printf("Can't get data for %s: (%s)", streamerName, err)
+			logger.Infow("Can't set data for %s: (%s)", streamerName, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
