@@ -8,16 +8,19 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+// ConnManager is user type of redis Pool
 type ConnManager struct {
 	redisConn *redis.Pool
 }
 
+// NewConnManager is return new connection to redis Pool
 func NewConnManager(conn *redis.Pool) *ConnManager {
 	return &ConnManager{
 		redisConn: conn,
 	}
 }
 
+// Check is check key in redis
 func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
@@ -37,6 +40,7 @@ func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
 	return si
 }
 
+// Create is save key data to redis
 func (sm *ConnManager) Create(si *StreamerInfo) error {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()

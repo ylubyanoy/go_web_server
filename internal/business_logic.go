@@ -39,14 +39,17 @@ var streamers = `{
 
 var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
 
+// StreamerNickName is streamer username
 type StreamerNickName struct {
 	Username string `json:"username"`
 }
 
+// Streamers is list of streamers
 type Streamers struct {
 	Streamer []StreamerNickName `json:"users"`
 }
 
+// StreamerInfo is struct of common stream information
 type StreamerInfo struct {
 	ChannelName  string `json:"channel_name"`
 	Game         string `json:"game"`
@@ -128,6 +131,7 @@ func getStreamData(streamerName, clientID string, wg *sync.WaitGroup, streamers 
 	mutex.Unlock()
 }
 
+// BusinessLogic is main func for business logic for app
 func BusinessLogic(logger *zap.SugaredLogger, redisAddr string, port string, shutdown chan<- error) *http.Server {
 	redisConn := &redis.Pool{
 		MaxIdle:     10,
