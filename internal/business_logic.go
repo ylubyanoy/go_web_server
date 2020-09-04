@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	twc "github.com/ylubyanoy/go_web_server/config"
+	twc "github.com/ylubyanoy/go_web_server/internal/config"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -144,7 +144,7 @@ func BusinessLogic(logger *zap.SugaredLogger, redisAddr string, port string, shu
 			return redisConn, nil
 		},
 	}
-	// var sessManager *ConnManager
+
 	sessManager := NewConnManager(redisConn)
 	rc := redisConn.Get()
 	_, err := redis.String(rc.Do("PING"))

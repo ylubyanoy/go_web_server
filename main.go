@@ -13,54 +13,12 @@ import (
 
 const servicename = "streamsinfo"
 
-// var streamers = `{
-// 	"users": [
-// 	  {"username": "thaina_"},
-// 	  {"username": "blabalbee"},
-// 	  {"username": "Smorodinova"},
-// 	  {"username": "CekLena"},
-// 	  {"username": "JowyBear"},
-// 	  {"username": "pimpka74"},
-// 	  {"username": "icytoxictv"},
-// 	  {"username": "ustepuka"},
-// 	  {"username": "AlenochkaBT"},
-// 	  {"username": "ViktoriiShka"},
-// 	  {"username": "irenchik"},
-// 	  {"username": "lola_grrr"},
-// 	  {"username": "Sensoria"},
-// 	  {"username": "aisumaisu"},
-// 	  {"username": "PANGCHOM"},
-// 	  {"username": "Danucd"}
-// 	]
-// }`
-
 func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
 	appLoger := logger.Sugar().Named(servicename)
 	appLoger.Info("The application is starting...")
-
-	// redisAddr := getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
-	// redisConn := &redis.Pool{
-	// 	MaxIdle:     10,
-	// 	IdleTimeout: 240 * time.Second,
-	// 	Dial: func() (redis.Conn, error) {
-	// 		redisConn, err := redis.DialURL(redisAddr)
-	// 		if err != nil {
-	// 			appLoger.Fatalw("Can't connect to Redis", "err", err)
-	// 		}
-	// 		return redisConn, nil
-	// 	},
-	// }
-	// sessManager = NewConnManager(redisConn)
-	// rc := redisConn.Get()
-	// _, err := redis.String(rc.Do("PING"))
-	// if err != nil {
-	// 	appLoger.Fatalw("Can't connect to Redis", "err", err)
-	// }
-	// rc.Close()
-	// appLoger.Info("Connected to Redis")
 
 	appLoger.Info("Reading configuration...")
 	port := getEnv("PORT", "8000")
