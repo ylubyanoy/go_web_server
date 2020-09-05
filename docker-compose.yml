@@ -19,7 +19,7 @@ services:
       REDIS_URL: redis://user:@redis:6379/0
     labels:
       - "traefik.enable=true"
-      - traefik.http.routers.app.rule=Host(`95.217.142.210`)
+      - traefik.http.routers.app.rule=Host(`localhost`) # 95.217.142.210
       - "traefik.http.routers.app.entrypoints=web"
 
   redis:

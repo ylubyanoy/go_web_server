@@ -1,9 +1,12 @@
-package internal
+package redis_store
 
 import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
+
+	"github.com/ylubyanoy/go_web_server/internal/storages"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -13,15 +16,35 @@ type ConnManager struct {
 	redisConn *redis.Pool
 }
 
-// NewConnManager is return new connection to redis Pool
-func NewConnManager(conn *redis.Pool) *ConnManager {
-	return &ConnManager{
-		redisConn: conn,
+// New is return new connection to redis Pool
+func New(redisAddr string) (*ConnManager, error) {
+	redisConn := &redis.Pool{
+		MaxIdle:     10,
+		IdleTimeout: 240 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			redisConn, err := redis.DialURL(redisAddr)
+			if err != nil {
+				return nil, fmt.Errorf("Can't connect to Redis: %w", err)
+			}
+			return redisConn, nil
+		},
 	}
+	rc := redisConn.Get()
+	_, err := redis.String(rc.Do("PING"))
+	if err != nil {
+		return nil, fmt.Errorf("Can't connect to Redis: %w", err)
+	}
+	rc.Close()
+
+	sm := &ConnManager{
+		redisConn: redisConn,
+	}
+
+	return sm, nil
 }
 
 // Check is check key in redis
-func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
+func (sm *ConnManager) Check(streamerName string) *storages.StreamerInfo {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
 
@@ -31,7 +54,7 @@ func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
 		log.Printf("cant get data for %s: (%s)", mkey, err)
 		return nil
 	}
-	si := &StreamerInfo{}
+	si := &storages.StreamerInfo{}
 	err = json.Unmarshal(data, si)
 	if err != nil {
 		log.Printf("cant unpack data for %s: (%s)", mkey, err)
@@ -41,7 +64,7 @@ func (sm *ConnManager) Check(streamerName string) *StreamerInfo {
 }
 
 // Create is save key data to redis
-func (sm *ConnManager) Create(si *StreamerInfo) error {
+func (sm *ConnManager) Create(si *storages.StreamerInfo) error {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
 
