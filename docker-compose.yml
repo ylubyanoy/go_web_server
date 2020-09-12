@@ -18,9 +18,10 @@ services:
     environment:
       REDIS_URL: redis://user:@redis:6379/0
     labels:
-      - "traefik.enable=true"
-      - traefik.http.routers.app.rule=Host(`localhost`) # 95.217.142.210
-      - "traefik.http.routers.app.entrypoints=web"
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`cod-portal.ru`) # 95.217.142.210
+      - traefik.http.routers.app.entrypoints=web
+      - traefik.http.routers.app.tls.certresolver=myresolver
 
   redis:
     image: redis
@@ -34,12 +35,17 @@ services:
     image: traefik:v2.0
     container_name: traefik
     command:
-      # - "--api.insecure=true"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=info@cod-portal.ru"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
-      # - "8080:8080"
+      - "443:443"
     volumes:
+      - ./letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock

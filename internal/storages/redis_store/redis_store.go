@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/ylubyanoy/go_web_server/internal/storages"
+	"github.com/ylubyanoy/go_web_server/internal/models"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -44,7 +44,7 @@ func New(redisAddr string) (*ConnManager, error) {
 }
 
 // Check is check key in redis
-func (sm *ConnManager) Check(streamerName string) *storages.StreamerInfo {
+func (sm *ConnManager) Check(streamerName string) *models.StreamerInfo {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
 
@@ -54,7 +54,7 @@ func (sm *ConnManager) Check(streamerName string) *storages.StreamerInfo {
 		log.Printf("cant get data for %s: (%s)", mkey, err)
 		return nil
 	}
-	si := &storages.StreamerInfo{}
+	si := &models.StreamerInfo{}
 	err = json.Unmarshal(data, si)
 	if err != nil {
 		log.Printf("cant unpack data for %s: (%s)", mkey, err)
@@ -64,7 +64,7 @@ func (sm *ConnManager) Check(streamerName string) *storages.StreamerInfo {
 }
 
 // Create is save key data to redis
-func (sm *ConnManager) Create(si *storages.StreamerInfo) error {
+func (sm *ConnManager) Create(si *models.StreamerInfo) error {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
 

@@ -9,108 +9,13 @@ import (
 
 	"github.com/ylubyanoy/go_web_server/internal/api/twitch_api"
 	"github.com/ylubyanoy/go_web_server/internal/models"
-	"github.com/ylubyanoy/go_web_server/internal/storages"
 	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
 
-var streamersList = `{
-	"users": [
-	  {"username": "thaina_"},
-	  {"username": "blabalbee"},
-	  {"username": "Smorodinova"},
-	  {"username": "CekLena"},
-	  {"username": "JowyBear"},
-	  {"username": "pimpka74"},
-	  {"username": "icytoxictv"},
-	  {"username": "ustepuka"},
-	  {"username": "AlenochkaBT"},
-	  {"username": "ViktoriiShka"},
-	  {"username": "irenchik"},
-	  {"username": "lola_grrr"},
-	  {"username": "Sensoria"},
-	  {"username": "aisumaisu"},
-	  {"username": "PANGCHOM"},
-	  {"username": "Danucd"}
-	]
-}`
-
 var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
-
-// func getStreamData(streamerName, clientID string, wg *sync.WaitGroup, streamers *[]storages.StreamerInfo, mutex *sync.Mutex) {
-// 	defer wg.Done()
-
-// 	timeout := time.Duration(5 * time.Second)
-// 	client := http.Client{
-// 		Timeout: timeout,
-// 	}
-// 	//Get streamer info
-// 	request, err := http.NewRequest("GET", "https://api.twitch.tv/kraken/users?login="+string(streamerName), nil)
-// 	request.Header.Set("Accept", "application/vnd.twitchtv.v5+json")
-// 	request.Header.Set("Client-ID", clientID)
-
-// 	resp, err := client.Do(request)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	body, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-
-// 	var tsi twc.TwitchStreamerInfo
-// 	err = json.Unmarshal(body, &tsi)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-
-// 	if len(tsi.Users) == 0 {
-// 		log.Printf("No data for User %s", streamerName)
-// 		return
-// 	}
-
-// 	// Get stream status
-// 	request, err = http.NewRequest("GET", "https://api.twitch.tv/kraken/streams/"+tsi.Users[0].ID, nil)
-// 	request.Header.Set("Accept", "application/vnd.twitchtv.v5+json")
-// 	request.Header.Set("Client-ID", clientID)
-
-// 	resp, err = client.Do(request)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-// 	defer resp.Body.Close()
-
-// 	body, err = ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-
-// 	var tss twc.TwitchStreamStatus
-// 	err = json.Unmarshal(body, &tss)
-// 	if err != nil {
-// 		log.Fatalf("Error: %s", err)
-// 	}
-
-// 	if tss.Stream.Viewers == 0 {
-// 		log.Printf("No stream data for User %s", streamerName)
-// 		return
-// 	}
-
-// 	si := storages.StreamerInfo{
-// 		ChannelName:  tsi.Users[0].Name,
-// 		Game:         tss.Stream.Game,
-// 		Viewers:      tss.Stream.Viewers,
-// 		StatusStream: "true",
-// 		Thumbnail:    tss.Stream.Preview.Large,
-// 	}
-// 	mutex.Lock()
-// 	*streamers = append(*streamers, si)
-// 	mutex.Unlock()
-// }
 
 // BusinessLogic is main func for business logic for app
 func BusinessLogic(logger *zap.SugaredLogger, redisAddr string, port string, shutdown chan<- error) *http.Server {
@@ -122,7 +27,7 @@ func BusinessLogic(logger *zap.SugaredLogger, redisAddr string, port string, shu
 	logger.Info("Connected to Redis")
 
 	r := mux.NewRouter()
-	r.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("GET")
+	r.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
 	r.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), sessManager)).Methods("GET")
 
 	server := http.Server{
@@ -153,7 +58,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 		t1 := time.Now()
 
 		var strNames models.Streamers
-		err := json.Unmarshal([]byte(streamersList), &strNames)
+		err := json.NewDecoder(r.Body).Decode(&strNames)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server error"))
@@ -209,7 +114,6 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 
 		// Return streamers info
 		json.NewEncoder(w).Encode(streamers)
-
 	}
 }
 
@@ -253,7 +157,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *redis_store.Conn
 		}
 
 		// Save to Redis
-		err = sessManager.Create(&storages.StreamerInfo{
+		err = sessManager.Create(&models.StreamerInfo{
 			ChannelName:  tsi.Users[0].Name,
 			Game:         tss.Stream.Game,
 			Viewers:      tss.Stream.Viewers,
@@ -267,7 +171,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *redis_store.Conn
 		}
 
 		// Return stream info
-		json.NewEncoder(w).Encode(&storages.StreamerInfo{
+		json.NewEncoder(w).Encode(&models.StreamerInfo{
 			ChannelName:  tsi.Users[0].Name,
 			Game:         tss.Stream.Game,
 			Viewers:      tss.Stream.Viewers,
