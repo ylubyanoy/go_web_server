@@ -1,9 +1,9 @@
 version: '3.7'
 
 networks:
-  default:
-    external:
-      name: network
+  monitor-net:
+    name: monitor-net
+    driver: bridge
 
 services:
   app:
@@ -17,9 +17,11 @@ services:
       - redis
     environment:
       REDIS_URL: redis://user:@redis:6379/0
+    networks:
+      - monitor-net
     labels:
       - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`cod-portal.ru`) # 95.217.142.210
+      - traefik.http.routers.app.rule=Host(`cod-portal.ru`) 
       - traefik.http.routers.app.entrypoints=web
       - traefik.http.routers.app.tls.certresolver=myresolver
 
@@ -30,22 +32,5 @@ services:
       - 6379
     labels:
       - "traefik.enable=false"
-
-  traefik:
-    image: traefik:v2.0
-    container_name: traefik
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.web.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=info@cod-portal.ru"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitor-net
