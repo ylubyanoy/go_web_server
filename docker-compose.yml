@@ -21,7 +21,7 @@ services:
       - monitor-net
     labels:
       - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`cod-portal.ru`) 
+      - traefik.http.routers.app.rule=Host(`cod-portal.ru`)
       - traefik.http.routers.app.entrypoints=web
       - traefik.http.routers.app.tls.certresolver=myresolver
 
@@ -32,5 +32,5 @@ services:
       - 6379
     labels:
       - "traefik.enable=false"
-    networks:
-      - monitor-net
+    network_mode: "host"
+

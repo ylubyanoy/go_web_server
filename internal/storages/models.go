@@ -1,5 +1,7 @@
 package storages
 
+import "github.com/ylubyanoy/go_web_server/internal/models"
+
 // StreamerNickName is streamer username
 type StreamerNickName struct {
 	Username string
@@ -17,4 +19,9 @@ type StreamerInfo struct {
 	Viewers      int
 	StatusStream string
 	Thumbnail    string
+}
+
+type KeyStorage interface {
+	Check(string) *models.StreamerInfo
+	Create(*models.StreamerInfo) error
 }

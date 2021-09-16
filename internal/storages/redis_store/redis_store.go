@@ -11,7 +11,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-// ConnManager is user type of redis Pool
+// ConnManager - user type of redis Pool
 type ConnManager struct {
 	redisConn *redis.Pool
 }
@@ -24,7 +24,7 @@ func New(redisAddr string) (*ConnManager, error) {
 		Dial: func() (redis.Conn, error) {
 			redisConn, err := redis.DialURL(redisAddr)
 			if err != nil {
-				return nil, fmt.Errorf("Can't connect to Redis: %w", err)
+				return nil, err
 			}
 			return redisConn, nil
 		},
@@ -32,7 +32,7 @@ func New(redisAddr string) (*ConnManager, error) {
 	rc := redisConn.Get()
 	_, err := redis.String(rc.Do("PING"))
 	if err != nil {
-		return nil, fmt.Errorf("Can't connect to Redis: %w", err)
+		return nil, fmt.Errorf("can't PING to Redis: %w", err)
 	}
 	rc.Close()
 
@@ -43,7 +43,7 @@ func New(redisAddr string) (*ConnManager, error) {
 	return sm, nil
 }
 
-// Check is check key in redis
+// Check - check key in redis
 func (sm *ConnManager) Check(streamerName string) *models.StreamerInfo {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
@@ -51,19 +51,19 @@ func (sm *ConnManager) Check(streamerName string) *models.StreamerInfo {
 	mkey := streamerName
 	data, err := redis.Bytes(cmc.Do("GET", mkey))
 	if err != nil {
-		log.Printf("cant get data for %s: (%s)", mkey, err)
+		log.Printf("can't get data for %s: (%s)", mkey, err)
 		return nil
 	}
 	si := &models.StreamerInfo{}
 	err = json.Unmarshal(data, si)
 	if err != nil {
-		log.Printf("cant unpack data for %s: (%s)", mkey, err)
+		log.Printf("can't unpack data for %s: (%s)", mkey, err)
 		return nil
 	}
 	return si
 }
 
-// Create is save key data to redis
+// Create - save key data to redis
 func (sm *ConnManager) Create(si *models.StreamerInfo) error {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ylubyanoy/go_web_server/internal"
+	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
 	"go.uber.org/zap"
 )
 
@@ -25,8 +26,14 @@ func main() {
 	redisAddr := getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
 	appLoger.Info("Configuration is ready")
 
+	sessManager, err := redis_store.New(redisAddr)
+	if err != nil {
+		appLoger.Fatalw("Can't connect to storage", "err", err)
+	}
+	appLoger.Info("Connected to Redis")
+
 	shutdown := make(chan error, 2)
-	bl := internal.BusinessLogic(appLoger.With("module", "bl"), redisAddr, port, shutdown)
+	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, port, shutdown)
 	appLoger.Info("Server are ready")
 
 	interrupt := make(chan os.Signal, 1)
@@ -42,7 +49,7 @@ func main() {
 	timeout, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 
-	err := bl.Shutdown(timeout)
+	err = bl.Shutdown(timeout)
 	if err != nil {
 		appLoger.Errorw("Got an error from the business logic server", "err", err)
 	}

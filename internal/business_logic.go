@@ -9,7 +9,7 @@ import (
 
 	"github.com/ylubyanoy/go_web_server/internal/api/twitch_api"
 	"github.com/ylubyanoy/go_web_server/internal/models"
-	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
+	"github.com/ylubyanoy/go_web_server/internal/storages"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -18,17 +18,11 @@ import (
 var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
 
 // BusinessLogic is main func for business logic for app
-func BusinessLogic(logger *zap.SugaredLogger, redisAddr string, port string, shutdown chan<- error) *http.Server {
-
-	sessManager, err := redis_store.New(redisAddr)
-	if err != nil {
-		logger.Fatalw("Can't connect to Redis", "err", err)
-	}
-	logger.Info("Connected to Redis")
+func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port string, shutdown chan<- error) *http.Server {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
-	r.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), sessManager)).Methods("GET")
+	r.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage)).Methods("GET")
 
 	server := http.Server{
 		Addr:    net.JoinHostPort("", port),
@@ -117,7 +111,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 	}
 }
 
-func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *redis_store.ConnManager) func(http.ResponseWriter, *http.Request) {
+func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) func(http.ResponseWriter, *http.Request) {
 	return func(
 		w http.ResponseWriter, r *http.Request) {
 		logger.Info("Received a call StreamerInfo")
@@ -127,7 +121,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *redis_store.Conn
 		streamerName := params["streamerName"]
 
 		// Check Redis
-		si := sessManager.Check(streamerName)
+		si := storage.Check(streamerName)
 		if si != nil {
 			logger.Info("Get from Redis")
 			json.NewEncoder(w).Encode(si)
@@ -157,7 +151,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, sessManager *redis_store.Conn
 		}
 
 		// Save to Redis
-		err = sessManager.Create(&models.StreamerInfo{
+		err = storage.Create(&models.StreamerInfo{
 			ChannelName:  tsi.Users[0].Name,
 			Game:         tss.Stream.Game,
 			Viewers:      tss.Stream.Viewers,
