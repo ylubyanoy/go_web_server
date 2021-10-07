@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ylubyanoy/go_web_server/internal"
+	"github.com/ylubyanoy/go_web_server/internal/data/postgres"
 	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,14 @@ func main() {
 	appLoger.Info("Reading configuration...")
 	port := getEnv("PORT", "8000")
 	redisAddr := getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
+	databaseURL := getEnv("REPO_URL", "postgres://postgres:12345@localhost:5432/postgres?sslmode=disable")
 	appLoger.Info("Configuration is ready")
+
+	repo, err := postgres.NewPostgresRepository(databaseURL, appLoger.With("module", "pgstore"))
+	if err != nil {
+		appLoger.Fatalw("Can't connect to pgstore", "err", err)
+	}
+	appLoger.Info("Connected to pgstore")
 
 	sessManager, err := redis_store.New(redisAddr)
 	if err != nil {
@@ -33,7 +41,7 @@ func main() {
 	appLoger.Info("Connected to Redis")
 
 	shutdown := make(chan error, 2)
-	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, port, shutdown)
+	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, port, repo, shutdown)
 	appLoger.Info("Server are ready")
 
 	interrupt := make(chan os.Signal, 1)

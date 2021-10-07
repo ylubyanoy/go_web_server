@@ -4,6 +4,9 @@ go 1.15
 
 require (
 	github.com/garyburd/redigo v1.6.2
+	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/gorilla/mux v1.8.0
+	github.com/jackc/pgx v3.6.2+incompatible // indirect
+	github.com/jackc/pgx/v4 v4.13.0 // indirect
 	go.uber.org/zap v1.15.0
 )

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ylubyanoy/go_web_server/internal/api/twitch_api"
+	"github.com/ylubyanoy/go_web_server/internal/data"
 	"github.com/ylubyanoy/go_web_server/internal/models"
 	"github.com/ylubyanoy/go_web_server/internal/storages"
 
@@ -18,7 +19,7 @@ import (
 var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
 
 // BusinessLogic is main func for business logic for app
-func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port string, shutdown chan<- error) *http.Server {
+func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port string, db data.Repository, shutdown chan<- error) *http.Server {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")

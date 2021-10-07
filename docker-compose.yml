@@ -16,21 +16,33 @@ services:
     depends_on:
       - redis
     environment:
-      REDIS_URL: redis://user:@redis:6379/0
+      - REDIS_URL="redis://user:@redis:6379/0"
+      - REPO_URL="postgres://postgres:12345@localhost:5432/postgres?sslmode=disable"
     networks:
       - monitor-net
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`cod-portal.ru`)
-      - traefik.http.routers.app.entrypoints=web
-      - traefik.http.routers.app.tls.certresolver=myresolver
+
 
   redis:
     image: redis
     restart: unless-stopped
     expose:
       - 6379
-    labels:
-      - "traefik.enable=false"
     network_mode: "host"
 
+
+  db:
+    image: postgres:11.2-alpine
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=12345
+
+
+volumes:
+  postgres_data:
