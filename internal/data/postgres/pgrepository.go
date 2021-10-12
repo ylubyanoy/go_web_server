@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -65,16 +66,16 @@ func (repo *PostgresRepository) Create(ctx context.Context, user *data.User) err
 	user.UpdatedAt = time.Now()
 
 	// repo.logger.Info("creating user", hclog.Fmt("%#v", user))
-	query := "insert into users (id, email, username, password, tokenhash, createdat, updatedat) values ($1, $2, $3, $4, $5, $6, $7)"
+	query := "insert into users (id, email, username, password, tokenhash, createdat, updatedat) values ($1, $2, $3, $4, $5, $6, $7) returning id"
 	return repo.conn.QueryRow(ctx, query, user.ID, user.Email, user.Username, user.Password, user.TokenHash, user.CreatedAt, user.UpdatedAt).Scan(&user.ID)
 }
 
 // GetUserByEmail retrieves the user object having the given email, else returns error
 func (repo *PostgresRepository) GetUserByEmail(ctx context.Context, email string) (*data.User, error) {
 	// repo.logger.Debug("querying for user with email", email)
-	query := "select id, email, username from users where email = $1"
+	query := "select id, email, username, password, isverified from users where email = $1"
 	var user data.User
-	if err := repo.conn.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.Username); err != nil {
+	if err := repo.conn.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.Username, &user.Password, &user.IsVerified); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRecordNotFound
 		}
@@ -118,7 +119,7 @@ func (repo *PostgresRepository) UpdateUsername(ctx context.Context, user *data.U
 func (repo *PostgresRepository) UpdateUserVerificationStatus(ctx context.Context, email string, status bool) error {
 	// repo.logger.Debug("updating verification status user with email", email)
 	var user data.User
-	query := "update users set isverified = $1 where email = $2"
+	query := "update users set isverified = $1 where email = $2 returning id"
 	if err := repo.conn.QueryRow(ctx, query, status, email).Scan(&user.ID); err != nil {
 		if err == pgx.ErrNoRows {
 			return ErrRecordNotFound
@@ -129,18 +130,18 @@ func (repo *PostgresRepository) UpdateUserVerificationStatus(ctx context.Context
 	return nil
 }
 
-// StoreMailVerificationData adds a mail verification data to db
+// StoreMailVerificationData adds a verification data to db
 func (repo *PostgresRepository) StoreVerificationData(ctx context.Context, verificationData *data.VerificationData) error {
-	var user data.User
-	query := "insert into verifications(email, code, expiresat, type) values($1, $2, $3, $4)"
-	return repo.conn.QueryRow(ctx, query, verificationData.Email, verificationData.Code, verificationData.ExpiresAt, verificationData.Type).Scan(&user.ID)
+	var vData data.VerificationData
+	query := "insert into verifications(email, code, expiresat, type) values($1, $2, $3, $4) returning email"
+	return repo.conn.QueryRow(ctx, query, verificationData.Email, verificationData.Code, verificationData.ExpiresAt, strconv.Itoa(int(verificationData.Type))).Scan(&vData.Email)
 }
 
 // GetMailVerificationCode retrieves the stored verification code.
 func (repo *PostgresRepository) GetVerificationData(ctx context.Context, email string, verificationDataType data.VerificationDataType) (*data.VerificationData, error) {
 	query := "select * from verifications where email = $1 and type = $2"
 	var verificationData data.VerificationData
-	if err := repo.conn.QueryRow(ctx, query, email, verificationDataType).Scan(&verificationData.Email, &verificationData.Code, &verificationData.ExpiresAt, &verificationData.Type); err != nil {
+	if err := repo.conn.QueryRow(ctx, query, email, strconv.Itoa(int(verificationDataType))).Scan(&verificationData.Email, &verificationData.Code, &verificationData.ExpiresAt, &verificationData.Type); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, ErrRecordNotFound
 		}
@@ -151,7 +152,7 @@ func (repo *PostgresRepository) GetVerificationData(ctx context.Context, email s
 
 // DeleteMailVerificationData deletes a used verification data
 func (repo *PostgresRepository) DeleteVerificationData(ctx context.Context, email string, verificationDataType data.VerificationDataType) error {
-	query := "delete from verifications where email = $1 and type = $2"
+	query := "delete from verifications where email = $1 and type = $2 returning email"
 	var verificationData data.VerificationData
 	return repo.conn.QueryRow(ctx, query, email, verificationDataType).Scan(&verificationData.Email)
 }
@@ -159,7 +160,7 @@ func (repo *PostgresRepository) DeleteVerificationData(ctx context.Context, emai
 // UpdatePassword updates the user password
 func (repo *PostgresRepository) UpdatePassword(ctx context.Context, userID string, password string, tokenHash string) error {
 	// repo.logger.Debug("updating password for user ", userID)
-	query := "update users set password = $1, tokenhash = $2 where id = $3"
+	query := "update users set password = $1, tokenhash = $2 where id = $3 returning id"
 	var user data.User
 	if err := repo.conn.QueryRow(ctx, query, password, tokenHash, userID).Scan(&user.ID); err != nil {
 		if err == pgx.ErrNoRows {
