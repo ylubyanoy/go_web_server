@@ -29,7 +29,7 @@ gen-cert-refresh-pub:
 
 # Migrationns
 migrate-up:
-	migrate -path migrations -database "postgres://postgres:12345@localhost:5432/postgres?sslmode=disable" -verbose up
+	migrate -path migrations -database "${REPO_URL}" -verbose up
 
 migrate-down:
-	migrate -path migrations -database "postgres://postgres:12345@localhost:5432/postgres?sslmode=disable" -verbose up
+	migrate -path migrations -database "${REPO_URL}" -verbose up
