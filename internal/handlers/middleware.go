@@ -24,7 +24,6 @@ func (ah *AuthHandler) MiddlewareValidateUser(next http.Handler) http.Handler {
 		if err != nil {
 			ah.logger.Error("deserialization of user json failed", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
-			// data.ToJSON(&GenericError{Error: err.Error()}, w)
 			data.ToJSON(&GenericResponse{Status: false, Message: err.Error()}, w)
 			return
 		}
@@ -34,7 +33,6 @@ func (ah *AuthHandler) MiddlewareValidateUser(next http.Handler) http.Handler {
 		if len(errs) != 0 {
 			ah.logger.Error("validation of user json failed", "error", errs)
 			w.WriteHeader(http.StatusBadRequest)
-			// data.ToJSON(&ValidationError{Errors: errs.Errors()}, w)
 			data.ToJSON(&GenericResponse{Status: false, Message: strings.Join(errs.Errors(), ",")}, w)
 			return
 		}
