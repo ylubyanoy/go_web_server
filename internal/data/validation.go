@@ -62,5 +62,6 @@ func (v *Validation) Validate(i interface{}) ValidationErrors {
 		ve := ValidationError{err.(validator.FieldError)}
 		returnErrs = append(returnErrs, ve)
 	}
+
 	return returnErrs
 }

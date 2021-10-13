@@ -56,7 +56,6 @@ type AuthHandler struct {
 	validator   *data.Validation
 	repo        data.Repository
 	authService services.Authentication
-	// mailService service.MailService
 }
 
 // NewUserHandler returns a new UserHandler instance
@@ -86,6 +85,14 @@ func (ah *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	user := r.Context().Value(UserKey{}).(data.User)
+
+	// Allow only Admin with right Email
+	if user.Username != "admin" || user.Email != "dreif@mail.ru" {
+		ah.logger.Error("user not allowed error", zap.Error(errors.New("user not allowed error")))
+		w.WriteHeader(http.StatusBadRequest)
+		data.ToJSON(&GenericResponse{Status: false, Message: ""}, w)
+		return
+	}
 
 	hashedPass, err := ah.hashPassword(user.Password)
 	if err != nil {
