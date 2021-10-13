@@ -32,8 +32,11 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 	uh := handlers.NewAuthHandler(logger.With("handler", "AuthHandler"), validator, db, authService)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
-	r.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage)).Methods("GET")
+
+	s := r.Methods(http.MethodGet).Subrouter()
+	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
+	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage)).Methods("GET")
+	s.Use(uh.MiddlewareValidateAccessToken)
 
 	postR := r.Methods(http.MethodPost).Subrouter()
 	postR.HandleFunc("/signup", uh.Signup)
@@ -42,7 +45,6 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 
 	mailR := r.PathPrefix("/verify").Methods(http.MethodPost).Subrouter()
 	mailR.HandleFunc("/mail", uh.VerifyMail)
-	mailR.HandleFunc("/password-reset", uh.VerifyPasswordReset)
 	mailR.Use(uh.MiddlewareValidateVerificationData)
 
 	// used the PathPrefix as workaround for scenarios where all the

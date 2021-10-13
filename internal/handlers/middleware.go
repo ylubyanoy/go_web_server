@@ -48,6 +48,40 @@ func (ah *AuthHandler) MiddlewareValidateUser(next http.Handler) http.Handler {
 	})
 }
 
+// MiddlewareValidateAccessToken validates whether the request contains a bearer token
+// it also decodes and authenticates the given token
+func (ah *AuthHandler) MiddlewareValidateAccessToken(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Type", "application/json")
+
+		ah.logger.Debug("validating access token")
+
+		token, err := extractToken(r)
+		if err != nil {
+			ah.logger.Error("Token not provided or malformed")
+			w.WriteHeader(http.StatusBadRequest)
+			data.ToJSON(&GenericResponse{Status: false, Message: "Authentication failed. Token not provided or malformed"}, w)
+			return
+		}
+		ah.logger.Debug("token present in header", token)
+
+		userID, err := ah.authService.ValidateAccessToken(token)
+		if err != nil {
+			ah.logger.Error("token validation failed", zap.Error(err))
+			w.WriteHeader(http.StatusBadRequest)
+			data.ToJSON(&GenericResponse{Status: false, Message: "Authentication failed. Invalid token"}, w)
+			return
+		}
+		ah.logger.Debug("access token validated")
+
+		ctx := context.WithValue(r.Context(), UserIDKey{}, userID)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // MiddlewareValidateRefreshToken validates whether the request contains a bearer token
 // it also decodes and authenticates the given token
 func (ah *AuthHandler) MiddlewareValidateRefreshToken(next http.Handler) http.Handler {

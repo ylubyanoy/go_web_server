@@ -120,7 +120,7 @@ func (ah *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		Email:     user.Email,
 		Code:      mailData.Code,
 		Type:      data.MailConfirmation,
-		ExpiresAt: time.Now().Add(time.Hour * time.Duration(2)),
+		ExpiresAt: time.Now().Add(time.Minute * time.Duration(30)),
 	}
 
 	err = ah.repo.StoreVerificationData(context.Background(), verificationData)
@@ -133,7 +133,7 @@ func (ah *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 
 	ah.logger.Debug("User created successfully")
 	w.WriteHeader(http.StatusCreated)
-	msg := "Please verify your email account using the confirmation code send to your mail(" + mailData.Code + ")"
+	msg := "Please verify your account using the confirmation code"
 	data.ToJSON(&GenericResponse{Status: true, Message: msg}, w)
 }
 
@@ -246,46 +246,6 @@ func (ah *AuthHandler) VerifyMail(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusAccepted)
 	data.ToJSON(&GenericResponse{Status: true, Message: "Mail Verification succeeded"}, w)
-}
-
-// VerifyPasswordReset verifies the code provided for password reset
-func (ah *AuthHandler) VerifyPasswordReset(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "application/json")
-
-	ah.logger.Debug("verifing password reset code")
-	verificationData := r.Context().Value(VerificationDataKey{}).(data.VerificationData)
-	verificationData.Type = data.PassReset
-
-	actualVerificationData, err := ah.repo.GetVerificationData(context.Background(), verificationData.Email, verificationData.Type)
-	if err != nil {
-		ah.logger.Error("unable to fetch verification data", zap.Error(err))
-		if strings.Contains(err.Error(), PgNoRowsMsg) {
-			w.WriteHeader(http.StatusNotAcceptable)
-			data.ToJSON(&GenericResponse{Status: false, Message: ErrUserNotFound}, w)
-			return
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		data.ToJSON(&GenericResponse{Status: false, Message: "Unable to reset password. Please try again later"}, w)
-		return
-	}
-
-	valid, err := ah.verify(actualVerificationData, &verificationData)
-	if !valid {
-		w.WriteHeader(http.StatusNotAcceptable)
-		data.ToJSON(&GenericResponse{Status: false, Message: err.Error()}, w)
-		return
-	}
-
-	respData := struct {
-		Code string
-	}{
-		Code: verificationData.Code,
-	}
-
-	ah.logger.Debug("password reset code verification succeeded")
-	w.WriteHeader(http.StatusAccepted)
-	data.ToJSON(&GenericResponse{Status: true, Message: "Password Reset code verification succeeded", Data: respData}, w)
 }
 
 func (ah *AuthHandler) verify(actualVerificationData *data.VerificationData, verificationData *data.VerificationData) (bool, error) {
