@@ -47,17 +47,6 @@ func (repo *PostgresRepository) Close() {
 	}
 }
 
-//// PostgresRepository has the implementation of the db methods.
-// type PostgresRepository struct {
-// 	db     *sqlx.DB
-// 	logger hclog.Logger
-// }
-
-// // NewPostgresRepository returns a new PostgresRepository instance
-// func NewPostgresRepository(db *sqlx.DB, logger hclog.Logger) *PostgresRepository {
-// 	return &PostgresRepository{db, logger}
-// }
-
 // Create inserts the given user into the database
 func (repo *PostgresRepository) Create(ctx context.Context, user *data.User) error {
 	uuidValue, _ := uuid.NewV4()
@@ -65,14 +54,14 @@ func (repo *PostgresRepository) Create(ctx context.Context, user *data.User) err
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	// repo.logger.Info("creating user", hclog.Fmt("%#v", user))
+	repo.logger.Info("creating user ", user)
 	query := "insert into users (id, email, username, password, tokenhash, createdat, updatedat) values ($1, $2, $3, $4, $5, $6, $7) returning id"
 	return repo.conn.QueryRow(ctx, query, user.ID, user.Email, user.Username, user.Password, user.TokenHash, user.CreatedAt, user.UpdatedAt).Scan(&user.ID)
 }
 
 // GetUserByEmail retrieves the user object having the given email, else returns error
 func (repo *PostgresRepository) GetUserByEmail(ctx context.Context, email string) (*data.User, error) {
-	// repo.logger.Debug("querying for user with email", email)
+	repo.logger.Debug("querying for user with email ", email)
 	query := "select id, email, username, password, isverified from users where email = $1"
 	var user data.User
 	if err := repo.conn.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.Username, &user.Password, &user.IsVerified); err != nil {
@@ -81,13 +70,13 @@ func (repo *PostgresRepository) GetUserByEmail(ctx context.Context, email string
 		}
 		return nil, err
 	}
-	// repo.logger.Debug("read users", hclog.Fmt("%#v", user))
+	repo.logger.Debug("read users ", user)
 	return &user, nil
 }
 
 // GetUserByID retrieves the user object having the given ID, else returns error
 func (repo *PostgresRepository) GetUserByID(ctx context.Context, userID string) (*data.User, error) {
-	// repo.logger.Debug("querying for user with id", userID)
+	repo.logger.Debug("querying for user with id ", userID)
 	query := "select  id, email, username from users where id = $1"
 	var user data.User
 	if err := repo.conn.QueryRow(ctx, query, userID).Scan(&user.ID, &user.Email, &user.Username); err != nil {
@@ -96,13 +85,13 @@ func (repo *PostgresRepository) GetUserByID(ctx context.Context, userID string) 
 		}
 		return nil, err
 	}
-	// repo.logger.Debug("read users", hclog.Fmt("%#v", user))
+	repo.logger.Debug("read users ", user)
 	return &user, nil
 }
 
 // UpdateUsername updates the username of the given user
 func (repo *PostgresRepository) UpdateUsername(ctx context.Context, user *data.User) error {
-	// repo.logger.Debug("updating user with id", user.ID)
+	repo.logger.Debug("updating user with id ", user.ID)
 	user.UpdatedAt = time.Now()
 	query := "update users set username = $1, updatedat = $2 where id = $3"
 	if err := repo.conn.QueryRow(ctx, query, user.Username, user.UpdatedAt, user.ID).Scan(&user.ID); err != nil {
@@ -111,13 +100,13 @@ func (repo *PostgresRepository) UpdateUsername(ctx context.Context, user *data.U
 		}
 		return err
 	}
-	// repo.logger.Debug("updated user", hclog.Fmt("%#v", user))
+	repo.logger.Debug("updated user ", user)
 	return nil
 }
 
 // UpdateUserVerificationStatus updates user verification status to true
 func (repo *PostgresRepository) UpdateUserVerificationStatus(ctx context.Context, email string, status bool) error {
-	// repo.logger.Debug("updating verification status user with email", email)
+	repo.logger.Debug("updating verification status user with email ", email)
 	var user data.User
 	query := "update users set isverified = $1 where email = $2 returning id"
 	if err := repo.conn.QueryRow(ctx, query, status, email).Scan(&user.ID); err != nil {
@@ -126,7 +115,7 @@ func (repo *PostgresRepository) UpdateUserVerificationStatus(ctx context.Context
 		}
 		return err
 	}
-	// repo.logger.Debug("updated user", hclog.Fmt("%#v", user))
+	repo.logger.Debug("updated user ", user)
 	return nil
 }
 
@@ -159,7 +148,7 @@ func (repo *PostgresRepository) DeleteVerificationData(ctx context.Context, emai
 
 // UpdatePassword updates the user password
 func (repo *PostgresRepository) UpdatePassword(ctx context.Context, userID string, password string, tokenHash string) error {
-	// repo.logger.Debug("updating password for user ", userID)
+	repo.logger.Debug("updating password for user ", userID)
 	query := "update users set password = $1, tokenhash = $2 where id = $3 returning id"
 	var user data.User
 	if err := repo.conn.QueryRow(ctx, query, password, tokenHash, userID).Scan(&user.ID); err != nil {
@@ -168,6 +157,6 @@ func (repo *PostgresRepository) UpdatePassword(ctx context.Context, userID strin
 		}
 		return err
 	}
-	// repo.logger.Debug("updated user", hclog.Fmt("%#v", user))
+	repo.logger.Debug("updated user", user)
 	return nil
 }

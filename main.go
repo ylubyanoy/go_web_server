@@ -7,7 +7,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ilyakaznacheev/cleanenv"
+
 	"github.com/ylubyanoy/go_web_server/internal"
+	"github.com/ylubyanoy/go_web_server/internal/config"
 	"github.com/ylubyanoy/go_web_server/internal/data/postgres"
 	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
 	"go.uber.org/zap"
@@ -23,25 +26,29 @@ func main() {
 	appLoger.Info("The application is starting...")
 
 	appLoger.Info("Reading configuration...")
-	port := getEnv("PORT", "8000")
-	redisAddr := getEnv("REDIS_URL", "redis://user:@localhost:6379/0")
-	databaseURL := getEnv("REPO_URL", "postgres://postgres:12345@localhost:5432/postgres?sslmode=disable")
+
+	cfg := config.NewConfig()
+	err := cleanenv.ReadConfig("configs/config.yml", cfg)
+	if err != nil {
+		appLoger.Fatalw("Can't read config", zap.Error(err))
+	}
+
 	appLoger.Info("Configuration is ready")
 
-	repo, err := postgres.NewPostgresRepository(databaseURL, appLoger.With("module", "pgstore"))
+	repo, err := postgres.NewPostgresRepository(cfg.RepoURL, appLoger.With("module", "pgstore"))
 	if err != nil {
-		appLoger.Fatalw("Can't connect to pgstore", "err", err)
+		appLoger.Fatalw("Can't connect to pgstore", zap.Error(err))
 	}
 	appLoger.Info("Connected to pgstore")
 
-	sessManager, err := redis_store.New(redisAddr)
+	sessManager, err := redis_store.New(cfg.RedisURL)
 	if err != nil {
-		appLoger.Fatalw("Can't connect to storage", "err", err)
+		appLoger.Fatalw("Can't connect to storage", zap.Error(err))
 	}
 	appLoger.Info("Connected to Redis")
 
 	shutdown := make(chan error, 2)
-	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, port, repo, shutdown)
+	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, cfg.Port, repo, shutdown)
 	appLoger.Info("Server are ready")
 
 	interrupt := make(chan os.Signal, 1)
@@ -50,7 +57,7 @@ func main() {
 	case x := <-interrupt:
 		appLoger.Infow("Received", "signal", x.String())
 	case err := <-shutdown:
-		appLoger.Errorw("Received error from functional unit", "err", err)
+		appLoger.Errorw("Received error from functional unit", zap.Error(err))
 	}
 
 	appLoger.Info("Stopping the servers...")
@@ -59,16 +66,8 @@ func main() {
 
 	err = bl.Shutdown(timeout)
 	if err != nil {
-		appLoger.Errorw("Got an error from the business logic server", "err", err)
+		appLoger.Errorw("Got an error from the business logic server", zap.Error(err))
 	}
 
 	appLoger.Info("The application is stopped.")
-}
-
-func getEnv(key, defaultValue string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-	return value
 }

@@ -9,6 +9,7 @@ require (
 	github.com/go-playground/validator v9.31.0+incompatible // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/gorilla/mux v1.8.0
+	github.com/ilyakaznacheev/cleanenv v1.2.5 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible // indirect
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
