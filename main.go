@@ -8,21 +8,20 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	"go.uber.org/zap"
 
 	"github.com/ylubyanoy/go_web_server/internal"
 	"github.com/ylubyanoy/go_web_server/internal/config"
 	"github.com/ylubyanoy/go_web_server/internal/data/postgres"
 	"github.com/ylubyanoy/go_web_server/internal/storages/redis_store"
-	"go.uber.org/zap"
+	"github.com/ylubyanoy/go_web_server/internal/utils"
 )
 
 const servicename = "streamsinfo"
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
 
-	appLoger := logger.Sugar().Named(servicename)
+	appLoger := utils.NewLogger(servicename)
 	appLoger.Info("The application is starting...")
 
 	appLoger.Info("Reading configuration...")
