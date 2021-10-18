@@ -33,7 +33,7 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 
 	r := mux.NewRouter()
 
-	s := r.Methods(http.MethodGet).Subrouter()
+	s := r.Methods(http.MethodGet, http.MethodPost).Subrouter()
 	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
 	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage)).Methods("GET")
 	s.Use(uh.MiddlewareValidateAccessToken)
