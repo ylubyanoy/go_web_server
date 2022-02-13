@@ -64,13 +64,13 @@ func (sm *ConnManager) Check(streamerName string) *models.StreamerInfo {
 }
 
 // Create - save key data to redis
-func (sm *ConnManager) Create(si *models.StreamerInfo) error {
+func (sm *ConnManager) Create(si *models.StreamerInfo, stime int) error {
 	cmc := sm.redisConn.Get()
 	defer cmc.Close()
 
 	dataSerialized, _ := json.Marshal(si)
 	mkey := si.ChannelName
-	data, err := cmc.Do("SET", mkey, dataSerialized, "EX", 60*10)
+	data, err := cmc.Do("SET", mkey, dataSerialized, "EX", stime)
 	result, err := redis.String(data, err)
 	if err != nil {
 		return err
@@ -79,4 +79,36 @@ func (sm *ConnManager) Create(si *models.StreamerInfo) error {
 		return fmt.Errorf("result not OK")
 	}
 	return nil
+}
+
+// CreateToken - save token to redis
+func (sm *ConnManager) CreateToken(tvalue string, stime int) error {
+	cmc := sm.redisConn.Get()
+	defer cmc.Close()
+
+	tkey := "token"
+	data, err := cmc.Do("SET", tkey, tvalue, "EX", stime)
+	result, err := redis.String(data, err)
+	if err != nil {
+		return err
+	}
+	if result != "OK" {
+		return fmt.Errorf("result not OK")
+	}
+	return nil
+}
+
+// CheckToken - check key in redis
+func (sm *ConnManager) CheckToken(streamerName string) string {
+	cmc := sm.redisConn.Get()
+	defer cmc.Close()
+
+	tkey := "token"
+	token, err := redis.Bytes(cmc.Do("GET", tkey))
+	if err != nil {
+		log.Printf("can't get token (%s)", err)
+		return ""
+	}
+
+	return string(token)
 }

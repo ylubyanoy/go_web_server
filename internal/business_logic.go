@@ -18,7 +18,10 @@ import (
 	"go.uber.org/zap"
 )
 
-var clientID string = "uqpc0satolohmpkplj0q0zgon883qx"
+const (
+	clientID     = "uqpc0satolohmpkplj0q0zgon883qx"
+	clientSecret = "tkdw28jvktekj56gw5k4m2qrwcdvcc"
+)
 
 // BusinessLogic is main func for business logic for app
 func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port string, db data.Repository, shutdown chan<- error) *http.Server {
@@ -160,11 +163,31 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 
 		apiClient := twitch_api.NewTwitchClient()
 
-		tsi, err := apiClient.GetStreamerInfo(streamerName, clientID)
-		if err != nil {
-			logger.Fatalf("Error: %s", err)
+		// Get token
+		token := storage.CheckToken("token")
+		if token == "" {
+			logger.Info("Get new token from Twitch")
+
+			token, err := apiClient.GetAccessToken(clientID, clientSecret)
+			if err != nil {
+				logger.Errorf("Error: %s", err)
+				return
+			}
+
+			// Save to Redis
+			err = storage.CreateToken(token, 24*60*60*50)
+			if err != nil {
+				logger.Infow("Can't set data (%s)", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 
+		tsi, err := apiClient.GetStreamerInfo(streamerName, clientID)
+		if err != nil {
+			logger.Errorf("Error: %s", err)
+			return
+		}
 		if len(tsi.Users) == 0 {
 			logger.Infof("No data for User %s", streamerName)
 			return
@@ -172,9 +195,9 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 
 		tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, clientID)
 		if err != nil {
-			logger.Fatalf("Error: %s", err)
+			logger.Errorf("Error: %s", err)
+			return
 		}
-
 		if tss.Stream.Viewers == 0 {
 			logger.Infof("No stream data for User %s", streamerName)
 			return
@@ -187,7 +210,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 			Viewers:      tss.Stream.Viewers,
 			StatusStream: "true",
 			Thumbnail:    tss.Stream.Preview.Large,
-		})
+		}, 60*10)
 		if err != nil {
 			logger.Infow("Can't set data for %s: (%s)", streamerName, err)
 			w.WriteHeader(http.StatusInternalServerError)

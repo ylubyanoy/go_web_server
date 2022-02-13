@@ -110,7 +110,7 @@ func (auth *AuthService) GenerateAccessToken(user *data.User) (string, error) {
 		userID,
 		tokenType,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Minute * time.Duration(30)).Unix(),
+			ExpiresAt: time.Now().Add(time.Hour * time.Duration(8760)).Unix(),
 			Issuer:    "streamers.auth.service",
 		},
 	}

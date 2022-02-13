@@ -23,5 +23,7 @@ type StreamerInfo struct {
 
 type KeyStorage interface {
 	Check(string) *models.StreamerInfo
-	Create(*models.StreamerInfo) error
+	CheckToken(string) string
+	Create(*models.StreamerInfo, int) error
+	CreateToken(string, int) error
 }

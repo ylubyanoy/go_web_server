@@ -2,6 +2,12 @@ package api
 
 import "time"
 
+type TwitchAccessToken struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	TokenType   string `json:"token_type"`
+}
+
 type TwitchUsers struct {
 	DisplayName string    `json:"display_name"`
 	ID          string    `json:"_id"`
