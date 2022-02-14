@@ -123,3 +123,65 @@ func (tc *TwitchClient) GetStreamStatus(ID, clientID string) (*api.TwitchStreamS
 
 	return &tss, nil
 }
+
+// GetStreamerInfov2 get Streamer information
+func (tc *TwitchClient) GetStreamerInfov2(streamerName, clientID, token string) (*api.TwitchUsersv2, error) {
+
+	urlPath := "https://api.twitch.tv/helix/users?login=" + streamerName
+
+	timeout := time.Duration(5 * time.Second)
+	client := http.Client{
+		Timeout: timeout,
+	}
+
+	request, _ := http.NewRequest("GET", urlPath, nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Client-ID", clientID)
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API request status: %s", http.StatusText(resp.StatusCode))
+	}
+	defer resp.Body.Close()
+
+	var tsi api.TwitchUsersv2
+	err = json.NewDecoder(resp.Body).Decode(&tsi)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tsi, nil
+}
+
+// GetStreamStatusv2 get Stream status for streamer
+func (tc *TwitchClient) GetStreamStatusv2(streamerName, clientID, token string) (*api.TwitchStreamv2, error) {
+
+	urlPath := "https://api.twitch.tv/helix/streams?user_login=" + streamerName
+
+	timeout := time.Duration(5 * time.Second)
+	client := http.Client{
+		Timeout: timeout,
+	}
+
+	request, _ := http.NewRequest("GET", urlPath, nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Client-ID", clientID)
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API request status: %s", http.StatusText(resp.StatusCode))
+	}
+	defer resp.Body.Close()
+
+	var tss api.TwitchStreamv2
+	err = json.NewDecoder(resp.Body).Decode(&tss)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tss, nil
+}

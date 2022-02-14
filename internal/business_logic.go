@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *
 	s := r.Methods(http.MethodGet, http.MethodPost).Subrouter()
 	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"), cfg)).Methods("POST")
 	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage, cfg)).Methods("GET")
+	s.HandleFunc("/api/v2/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage, cfg)).Methods("GET")
 	s.Use(uh.MiddlewareValidateAccessToken)
 
 	postR := r.Methods(http.MethodPost).Subrouter()
@@ -152,7 +154,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, 
 		// Check Redis
 		si := storage.Check(streamerName)
 		if si != nil {
-			logger.Info("Get from Redis")
+			logger.Info("Get from Redis for" + streamerName)
 			json.NewEncoder(w).Encode(si)
 			return
 		}
@@ -179,34 +181,43 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, 
 			}
 		}
 
-		tsi, err := apiClient.GetStreamerInfo(streamerName, cfg.ClientID)
+		tsi, err := apiClient.GetStreamerInfov2(streamerName, cfg.ClientID, token)
 		if err != nil {
 			logger.Errorf("Error: %s", err)
 			return
 		}
-		if len(tsi.Users) == 0 {
+		if len(tsi.Data) == 0 {
 			logger.Infof("No data for User %s", streamerName)
 			return
 		}
 
-		tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, cfg.ClientID)
+		tss, err := apiClient.GetStreamStatusv2(streamerName, cfg.ClientID, token)
 		if err != nil {
 			logger.Errorf("Error: %s", err)
 			return
 		}
-		if tss.Stream.Viewers == 0 {
+		if tss.Data[0].ViewerCount == 0 {
 			logger.Infof("No stream data for User %s", streamerName)
 			return
 		}
 
-		// Save to Redis
-		err = storage.Create(&models.StreamerInfo{
-			ChannelName:  tsi.Users[0].Name,
-			Game:         tss.Stream.Game,
-			Viewers:      tss.Stream.Viewers,
+		// Change url for {640} {360}
+		re, _ := regexp.Compile("{width}")
+		re2, _ := regexp.Compile("{height}")
+		ThumbnailURL := tss.Data[0].ThumbnailURL
+		thumbnail := re.ReplaceAllString(ThumbnailURL, "640")
+		thumbnail = re2.ReplaceAllString(thumbnail, "360")
+
+		StreamInfo := &models.StreamerInfo{
+			ChannelName:  tsi.Data[0].DisplayName,
+			Game:         tss.Data[0].GameName,
+			Viewers:      int(tss.Data[0].ViewerCount),
 			StatusStream: "true",
-			Thumbnail:    tss.Stream.Preview.Large,
-		}, cfg.StreamerDataExpiresTime)
+			Thumbnail:    thumbnail,
+		}
+
+		// Save to Redis
+		err = storage.Create(StreamInfo, cfg.StreamerDataExpiresTime)
 		if err != nil {
 			logger.Infow("Can't set data for %s: (%s)", streamerName, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -214,12 +225,6 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, 
 		}
 
 		// Return stream info
-		json.NewEncoder(w).Encode(&models.StreamerInfo{
-			ChannelName:  tsi.Users[0].Name,
-			Game:         tss.Stream.Game,
-			Viewers:      tss.Stream.Viewers,
-			StatusStream: "true",
-			Thumbnail:    tss.Stream.Preview.Large,
-		})
+		json.NewEncoder(w).Encode(StreamInfo)
 	}
 }
