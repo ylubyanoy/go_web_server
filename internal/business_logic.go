@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ylubyanoy/go_web_server/internal/api/twitch_api"
+	"github.com/ylubyanoy/go_web_server/internal/config"
 	"github.com/ylubyanoy/go_web_server/internal/data"
 	"github.com/ylubyanoy/go_web_server/internal/handlers"
 	"github.com/ylubyanoy/go_web_server/internal/models"
@@ -18,13 +19,8 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	clientID     = "uqpc0satolohmpkplj0q0zgon883qx"
-	clientSecret = "tkdw28jvktekj56gw5k4m2qrwcdvcc"
-)
-
 // BusinessLogic is main func for business logic for app
-func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port string, db data.Repository, shutdown chan<- error) *http.Server {
+func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *config.Config, db data.Repository, shutdown chan<- error) *http.Server {
 
 	validator := data.NewValidation()
 
@@ -37,8 +33,8 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 	r := mux.NewRouter()
 
 	s := r.Methods(http.MethodGet, http.MethodPost).Subrouter()
-	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"))).Methods("POST")
-	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage)).Methods("GET")
+	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"), cfg)).Methods("POST")
+	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage, cfg)).Methods("GET")
 	s.Use(uh.MiddlewareValidateAccessToken)
 
 	postR := r.Methods(http.MethodPost).Subrouter()
@@ -58,7 +54,7 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 	refToken.Use(uh.MiddlewareValidateRefreshToken)
 
 	server := http.Server{
-		Addr:    net.JoinHostPort("", port),
+		Addr:    net.JoinHostPort("", cfg.Port),
 		Handler: r,
 	}
 
@@ -73,7 +69,7 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, port 
 	return &server
 }
 
-func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
+func handleStreamersInfo(logger *zap.SugaredLogger, cfg *config.Config) func(http.ResponseWriter, *http.Request) {
 	return func(
 		w http.ResponseWriter, r *http.Request) {
 		logger.Info("Received a call StreamersInfo")
@@ -102,7 +98,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 
 				apiClient := twitch_api.NewTwitchClient()
 
-				tsi, err := apiClient.GetStreamerInfo(streamerName, clientID)
+				tsi, err := apiClient.GetStreamerInfo(streamerName, cfg.ClientID)
 				if err != nil {
 					logger.Fatalf("Error: %s", err)
 				}
@@ -112,7 +108,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 					return
 				}
 
-				tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, clientID)
+				tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, cfg.ClientID)
 				if err != nil {
 					logger.Fatalf("Error: %s", err)
 				}
@@ -133,7 +129,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 				*streamers = append(*streamers, si)
 				mutex.Unlock()
 
-			}(streamerName.Username, clientID, &wg, &streamers, mutex)
+			}(streamerName.Username, cfg.ClientID, &wg, &streamers, mutex)
 		}
 
 		wg.Wait()
@@ -144,7 +140,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger) func(http.ResponseWriter, *h
 	}
 }
 
-func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) func(http.ResponseWriter, *http.Request) {
+func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *config.Config) func(http.ResponseWriter, *http.Request) {
 	return func(
 		w http.ResponseWriter, r *http.Request) {
 		logger.Info("Received a call StreamerInfo")
@@ -168,14 +164,14 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 		if token == "" {
 			logger.Info("Get new token from Twitch")
 
-			token, err := apiClient.GetAccessToken(clientID, clientSecret)
+			token, err := apiClient.GetAccessToken(cfg.ClientID, cfg.ClientSecret)
 			if err != nil {
 				logger.Errorf("Error: %s", err)
 				return
 			}
 
 			// Save to Redis
-			err = storage.CreateToken(token, 24*60*60*50)
+			err = storage.CreateToken(token, cfg.TokenExpiresTime)
 			if err != nil {
 				logger.Infow("Can't set data (%s)", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -183,7 +179,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 			}
 		}
 
-		tsi, err := apiClient.GetStreamerInfo(streamerName, clientID)
+		tsi, err := apiClient.GetStreamerInfo(streamerName, cfg.ClientID)
 		if err != nil {
 			logger.Errorf("Error: %s", err)
 			return
@@ -193,7 +189,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 			return
 		}
 
-		tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, clientID)
+		tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, cfg.ClientID)
 		if err != nil {
 			logger.Errorf("Error: %s", err)
 			return
@@ -210,7 +206,7 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage) 
 			Viewers:      tss.Stream.Viewers,
 			StatusStream: "true",
 			Thumbnail:    tss.Stream.Preview.Large,
-		}, 60*10)
+		}, cfg.StreamerDataExpiresTime)
 		if err != nil {
 			logger.Infow("Can't set data for %s: (%s)", streamerName, err)
 			w.WriteHeader(http.StatusInternalServerError)

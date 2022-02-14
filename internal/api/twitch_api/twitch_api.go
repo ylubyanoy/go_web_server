@@ -12,16 +12,14 @@ import (
 )
 
 const (
-	clientID           = "uqpc0satolohmpkplj0q0zgon883qx"
-	clientSecret       = "tkdw28jvktekj56gw5k4m2qrwcdvcc"
+	// clientID           = "uqpc0satolohmpkplj0q0zgon883qx"
+	// clientSecret       = "tkdw28jvktekj56gw5k4m2qrwcdvcc"
 	getStreamerInfoURL = "https://api.twitch.tv/kraken/users?login="
 	getStreamStatusURL = "https://api.twitch.tv/kraken/streams/"
 )
 
 // TwitchClient is a Twitch API client
-type TwitchClient struct {
-	url string
-}
+type TwitchClient struct{}
 
 // NewTwitchClient creates a new joke client
 func NewTwitchClient() *TwitchClient {

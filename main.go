@@ -47,7 +47,7 @@ func main() {
 	appLoger.Info("Connected to Redis")
 
 	shutdown := make(chan error, 2)
-	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, cfg.Port, repo, shutdown)
+	bl := internal.BusinessLogic(appLoger.With("module", "bl"), sessManager, cfg, repo, shutdown)
 	appLoger.Info("Server are ready")
 
 	interrupt := make(chan os.Signal, 1)

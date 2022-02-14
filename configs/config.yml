@@ -1,3 +1,7 @@
 port: "8000"
 redis_url: "redis://user:@localhost:6379/0"
 repo_url: "postgres://postgres:12345@localhost:5432/postgres?sslmode=disable"
+client_id: "uqpc0satolohmpkplj0q0zgon883qx"
+client_secret: "tkdw28jvktekj56gw5k4m2qrwcdvcc"
+token_expires_time: 4320000
+streamer_data_expires_time: 600
