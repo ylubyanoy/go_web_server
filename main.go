@@ -59,7 +59,7 @@ func main() {
 		appLoger.Errorw("Received error from functional unit", zap.Error(err))
 	}
 
-	appLoger.Info("Stopping the servers...")
+	appLoger.Info("Stopping the server...")
 	timeout, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 
