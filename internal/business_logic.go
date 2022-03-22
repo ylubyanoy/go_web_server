@@ -34,7 +34,8 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *
 	r := mux.NewRouter()
 
 	s := r.Methods(http.MethodGet, http.MethodPost).Subrouter()
-	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"), cfg)).Methods("POST")
+	s.HandleFunc("/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"), storage, cfg)).Methods("POST")
+	s.HandleFunc("/api/v2/streamers/", handleStreamersInfo(logger.With("handler", "getStreamersInfo"), storage, cfg)).Methods("POST")
 	s.HandleFunc("/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage, cfg)).Methods("GET")
 	s.HandleFunc("/api/v2/streamers/{streamerName}", handleStreamerInfo(logger.With("handler", "getStreamerInfo"), storage, cfg)).Methods("GET")
 	s.Use(uh.MiddlewareValidateAccessToken)
@@ -71,7 +72,7 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *
 	return &server
 }
 
-func handleStreamersInfo(logger *zap.SugaredLogger, cfg *config.Config) func(http.ResponseWriter, *http.Request) {
+func handleStreamersInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *config.Config) func(http.ResponseWriter, *http.Request) {
 	return func(
 		w http.ResponseWriter, r *http.Request) {
 		logger.Info("Received a call StreamersInfo")
@@ -95,43 +96,87 @@ func handleStreamersInfo(logger *zap.SugaredLogger, cfg *config.Config) func(htt
 
 		for _, streamerName := range strNames.Streamer {
 			wg.Add(1)
-			go func(streamerName, clientID string, wg *sync.WaitGroup, streamers *[]models.StreamerInfo, mutex *sync.Mutex) {
+			go func(streamerName, clientID string, wg *sync.WaitGroup, streamers *[]models.StreamerInfo, cfg *config.Config, mutex *sync.Mutex) {
 				defer wg.Done()
+
+				// Check Redis
+				si := storage.Check(streamerName)
+				if si != nil {
+					logger.Info("Get from Redis for" + streamerName)
+					json.NewEncoder(w).Encode(si)
+					return
+				}
 
 				apiClient := twitch_api.NewTwitchClient()
 
-				tsi, err := apiClient.GetStreamerInfo(streamerName, cfg.ClientID)
+				// Get token
+				token := storage.CheckToken("token")
+				if token == "" {
+					logger.Info("Get new token from Twitch")
+
+					token, err := apiClient.GetAccessToken(cfg.ClientID, cfg.ClientSecret)
+					if err != nil {
+						logger.Errorf("Error: %s", err)
+						return
+					}
+
+					// Save to Redis
+					err = storage.CreateToken(token, cfg.TokenExpiresTime)
+					if err != nil {
+						logger.Infow("Can't set data (%s)", err)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+				}
+
+				tsi, err := apiClient.GetStreamerInfov2(streamerName, cfg.ClientID, token)
 				if err != nil {
 					logger.Fatalf("Error: %s", err)
 				}
 
-				if len(tsi.Users) == 0 {
+				if len(tsi.Data) == 0 {
 					logger.Infof("No data for User %s", streamerName)
 					return
 				}
 
-				tss, err := apiClient.GetStreamStatus(tsi.Users[0].ID, cfg.ClientID)
+				tss, err := apiClient.GetStreamStatusv2(tsi.Data[0].ID, cfg.ClientID, token)
 				if err != nil {
 					logger.Fatalf("Error: %s", err)
 				}
 
-				if tss.Stream.Viewers == 0 {
+				if len(tss.Data) == 0 || tss.Data[0].ViewerCount == 0 {
 					logger.Infof("No stream data for User %s", streamerName)
 					return
 				}
 
-				si := models.StreamerInfo{
-					ChannelName:  tsi.Users[0].Name,
-					Game:         tss.Stream.Game,
-					Viewers:      tss.Stream.Viewers,
+				// Change url for {640} {360}
+				re, _ := regexp.Compile("{width}")
+				re2, _ := regexp.Compile("{height}")
+				ThumbnailURL := tss.Data[0].ThumbnailURL
+				thumbnail := re.ReplaceAllString(ThumbnailURL, "640")
+				thumbnail = re2.ReplaceAllString(thumbnail, "360")
+
+				si = &models.StreamerInfo{
+					ChannelName:  tsi.Data[0].DisplayName,
+					Game:         tss.Data[0].GameName,
+					Viewers:      int(tss.Data[0].ViewerCount),
 					StatusStream: "true",
-					Thumbnail:    tss.Stream.Preview.Large,
+					Thumbnail:    thumbnail,
 				}
+
 				mutex.Lock()
-				*streamers = append(*streamers, si)
+				*streamers = append(*streamers, *si)
 				mutex.Unlock()
 
-			}(streamerName.Username, cfg.ClientID, &wg, &streamers, mutex)
+				// Save to Redis
+				err = storage.Create(si, cfg.StreamerDataExpiresTime)
+				if err != nil {
+					logger.Infow("Can't set data for %s: (%s)", streamerName, err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+
+			}(streamerName.Username, cfg.ClientID, &wg, &streamers, cfg, mutex)
 		}
 
 		wg.Wait()
@@ -196,7 +241,8 @@ func handleStreamerInfo(logger *zap.SugaredLogger, storage storages.KeyStorage, 
 			logger.Errorf("Error: %s", err)
 			return
 		}
-		if tss.Data[0].ViewerCount == 0 {
+
+		if len(tss.Data) == 0 || tss.Data[0].ViewerCount == 0 {
 			logger.Infof("No stream data for User %s", streamerName)
 			return
 		}
