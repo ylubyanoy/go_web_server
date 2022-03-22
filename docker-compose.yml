@@ -1,12 +1,12 @@
 version: '3.7'
 
 networks:
-  monitor-net:
+  streamers-net:
     name: streamers-net
     driver: bridge
 
 services:
-  app:
+  streamers_app:
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,16 +15,16 @@ services:
     expose:
       - 8000
     depends_on:
-      - redis
-      - db
+      - streamers_redis
+      - streamers_db
     environment:
       - REDIS_URL="redis://user:@redis:6379/0"
-      - REPO_URL="postgres://postgres:12345@localhost:5432/postgres?sslmode=disable"
+      - REPO_URL="postgres://postgres:12345@streamers_db:5432/postgres?sslmode=disable"
     networks:
       - streamers-net
 
 
-  redis:
+  streamers_redis:
     image: redis
     container_name: "streamers_redis"
     restart: unless-stopped
@@ -34,7 +34,7 @@ services:
       - streamers-net
 
 
-  db:
+  streamers_db:
     image: postgres:11.2-alpine
     container_name: "streamers_db"
     restart: unless-stopped
