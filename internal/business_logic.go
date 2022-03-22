@@ -49,9 +49,6 @@ func BusinessLogic(logger *zap.SugaredLogger, storage storages.KeyStorage, cfg *
 	mailR.HandleFunc("/mail", uh.VerifyMail)
 	mailR.Use(uh.MiddlewareValidateVerificationData)
 
-	// used the PathPrefix as workaround for scenarios where all the
-	// get requests must use the ValidateAccessToken middleware except
-	// the /refresh-token request which has to use ValidateRefreshToken middleware
 	refToken := r.PathPrefix("/refresh-token").Subrouter()
 	refToken.HandleFunc("", uh.RefreshToken)
 	refToken.Use(uh.MiddlewareValidateRefreshToken)
