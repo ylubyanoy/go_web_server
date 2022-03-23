@@ -16,11 +16,11 @@ import (
 	"github.com/ylubyanoy/go_web_server/internal/data"
 )
 
-var (
-	ACCESS_TOKEN_PRIVATE_KEY_PATH  = "access"
-	ACCESS_TOKEN_PUBLIC_KEY_PATH   = "access.pub"
-	REFRESH_TOKEN_PRIVATE_KEY_PATH = "refresh"
-	REFRESH_TOKEN_PUBLIC_KEY_PATH  = "refresh.pub"
+const (
+	ACCESS_TOKEN_PRIVATE_KEY_PATH  = "/root/keys/private"
+	ACCESS_TOKEN_PUBLIC_KEY_PATH   = "/root/keys/private.pub"
+	REFRESH_TOKEN_PRIVATE_KEY_PATH = "/root/keys/refresh"
+	REFRESH_TOKEN_PUBLIC_KEY_PATH  = "/root//keys/refresh.pub"
 )
 
 // Authentication interface lists the methods that our authentication service should implement

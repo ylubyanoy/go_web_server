@@ -3,8 +3,8 @@ package config
 // Config struct
 type Config struct {
 	Port                    string `yaml:"port"`
-	RedisURL                string `yaml:"redis_url"`
-	RepoURL                 string `yaml:"repo_url"`
+	RedisURL                string `env:"REDIS_URL"`
+	RepoURL                 string `env:"REPO_URL"`
 	ClientID                string `yaml:"client_id"`
 	ClientSecret            string `yaml:"client_secret"`
 	TokenExpiresTime        int    `yaml:"token_expires_time"`

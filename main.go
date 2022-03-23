@@ -31,12 +31,19 @@ func main() {
 	if err != nil {
 		appLoger.Fatalw("Can't read config", zap.Error(err))
 	}
+	err = cleanenv.ReadEnv(cfg)
+	if err != nil {
+		appLoger.Fatalw("Can't read env", zap.Error(err))
+	}
 
 	appLoger.Info("Configuration is ready")
 
 	repo, err := postgres.NewPostgresRepository(cfg.RepoURL, appLoger.With("module", "pgstore"))
 	if err != nil {
-		appLoger.Fatalw("Can't connect to pgstore", zap.Error(err))
+		appLoger.Fatalw("Can't connect to pgstore",
+			zap.String("RepoURL", cfg.RepoURL),
+			zap.Error(err),
+		)
 	}
 	appLoger.Info("Connected to pgstore")
 

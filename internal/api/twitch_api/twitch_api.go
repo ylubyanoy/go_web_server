@@ -30,7 +30,7 @@ func NewTwitchClient() *TwitchClient {
 func (tc *TwitchClient) GetAccessToken(clientID, clientSecret string) (string, error) {
 
 	urlPath := "https://id.twitch.tv/oauth2/token?grant_type=client_credentials"
-	urlRedirect := url.QueryEscape("https://8a88-46-72-17-208.ngrok.io")
+	urlRedirect := url.QueryEscape("https://cod-portal.ru")
 
 	payload := strings.NewReader(fmt.Sprintf("client_id=%s&client_secret=%s&redirect_uri=%s&code=%s", clientID, clientSecret, urlRedirect, clientSecret))
 

@@ -18,8 +18,10 @@ services:
       - streamers_redis
       - streamers_db
     environment:
-      - REDIS_URL="redis://user:@redis:6379/0"
-      - REPO_URL="postgres://postgres:12345@streamers_db:5432/postgres?sslmode=disable"
+      - REDIS_URL=redis://user:@streamers_redis:6379/0
+      - REPO_URL=postgres://postgres:12345@streamers_db:5432/postgres?sslmode=disable
+    volumes:
+      - ./keys:/root/keys
     networks:
       - streamers-net
 
