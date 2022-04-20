@@ -93,7 +93,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger, storage storages.KeyStorage,
 
 		for _, streamerName := range strNames.Streamer {
 			wg.Add(1)
-			go func(streamerName, clientID string, wg *sync.WaitGroup, streamers *[]models.StreamerInfo, cfg *config.Config, mutex *sync.Mutex) {
+			go func(streamerName string, wg *sync.WaitGroup, streamers *[]models.StreamerInfo, cfg *config.Config, mutex *sync.Mutex) {
 				defer wg.Done()
 
 				// Check Redis
@@ -173,7 +173,7 @@ func handleStreamersInfo(logger *zap.SugaredLogger, storage storages.KeyStorage,
 					return
 				}
 
-			}(streamerName.Username, cfg.ClientID, &wg, &streamers, cfg, mutex)
+			}(streamerName.Username, &wg, &streamers, cfg, mutex)
 		}
 
 		wg.Wait()

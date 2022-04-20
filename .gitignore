@@ -18,5 +18,7 @@
 
 access
 access.pub
+private
+private.pub
 refresh
 refresh.pub
